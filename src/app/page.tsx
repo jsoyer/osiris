@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, Share2, Map as MapIcon, X, Globe, MapPinned } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, Share2, Map as MapIcon, X, Globe, MapPinned, Radar, Satellite, Moon } from 'lucide-react';
 import LayerPanel from '@/components/LayerPanel';
 import IntelFeed from '@/components/IntelFeed';
 import MarketsPanel from '@/components/MarketsPanel';
@@ -51,7 +51,9 @@ export default function Dashboard() {
   const [showIntel, setShowIntel] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'layers'|'markets'|'intel'|'search'|null>(null);
-  const [mapProjection, setMapProjection] = useState<'globe'|'mercator'>('mercator');
+  const [mapProjection, setMapProjection] = useState<'globe'|'mercator'>('globe');
+  const [mapStyle, setMapStyle] = useState<'dark'|'satellite'>('dark');
+  const [showOsint, setShowOsint] = useState(false);
   const isMobile = useIsMobile();
   const startTime = useRef(Date.now());
   const geocodeCache = useRef<Map<string, string>>(new Map());
@@ -309,7 +311,7 @@ export default function Dashboard() {
 
       {/* ── MAP ── */}
       <ErrorBoundary name="Map">
-        <OsirisMap data={data} activeLayers={activeLayers} projection={mapProjection} onEntityClick={(entity) => {
+        <OsirisMap data={data} activeLayers={activeLayers} projection={mapProjection} mapStyle={mapStyle === 'satellite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : 'dark'} onEntityClick={(entity) => {
           if (entity?.type === 'cctv') setActiveCamera(entity);
         }} onMouseCoords={handleMouseCoords} onRightClick={handleRightClick} onViewStateChange={setMapView} flyToLocation={flyToLocation} />
       </ErrorBoundary>
@@ -328,6 +330,23 @@ export default function Dashboard() {
         )}
         <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-[7px] font-mono text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
           {mapProjection === 'globe' ? '2D MAP' : '3D GLOBE'}
+        </span>
+      </motion.button>
+
+      {/* ── MAP STYLE TOGGLE ── */}
+      <motion.button
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3.7 }}
+        onClick={() => setMapStyle(s => s === 'dark' ? 'satellite' : 'dark')}
+        className="absolute bottom-20 md:bottom-36 left-3 md:left-5 z-[200] glass-panel p-2 pointer-events-auto hover:border-[var(--gold-primary)]/40 transition-colors group"
+        title={mapStyle === 'dark' ? 'Satellite View' : 'Night View'}
+      >
+        {mapStyle === 'dark' ? (
+          <Satellite className="w-4 h-4 text-[var(--alert-green)] group-hover:scale-110 transition-transform" />
+        ) : (
+          <Moon className="w-4 h-4 text-[var(--cyan-primary)] group-hover:scale-110 transition-transform" />
+        )}
+        <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-[7px] font-mono text-[var(--text-muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+          {mapStyle === 'dark' ? 'SATELLITE' : 'NIGHT MODE'}
         </span>
       </motion.button>
 
@@ -391,7 +410,14 @@ export default function Dashboard() {
       <div className="desktop-panel absolute right-5 top-20 bottom-24 w-80 flex flex-col gap-3 z-[200] pointer-events-auto overflow-y-auto styled-scrollbar pr-1">
         <div className="flex gap-2 items-start">
           <div className="flex-1"><SearchBar onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} /></div>
-          <div className="relative"><OsintPanel /></div>
+          <motion.button
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            onClick={() => setShowOsint(true)}
+            className="glass-panel px-3 py-1.5 flex items-center gap-1.5 pointer-events-auto hover:border-[var(--cyan-primary)]/40 transition-colors"
+          >
+            <Radar className="w-3.5 h-3.5 text-[var(--cyan-primary)]" />
+            <span className="text-[8px] font-mono text-[var(--cyan-primary)] tracking-widest font-bold">RECON</span>
+          </motion.button>
           <div className="relative"><SharePanel mapView={mapView} activeLayers={activeLayers} mouseCoords={mouseCoords} /></div>
         </div>
         {showMarkets && <MarketsPanel data={data} spaceWeather={spaceWeather} />}
@@ -554,6 +580,9 @@ export default function Dashboard() {
       <div className="desktop-only absolute bottom-2 right-5 z-[200] pointer-events-none text-[6px] font-mono text-[var(--text-muted)]/40 tracking-widest">
         [?] SHORTCUTS · [F] FULLSCREEN · [S] SHARE · [R] RESET VIEW
       </div>
+
+      {/* ── OSINT RECON PANEL ── */}
+      <OsintPanel isOpen={showOsint} onClose={() => setShowOsint(false)} />
     </main>
   );
 }

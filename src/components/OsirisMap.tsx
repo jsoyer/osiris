@@ -13,6 +13,7 @@ interface OsirisMapProps {
   onViewStateChange?: (vs: { zoom: number; latitude: number }) => void;
   flyToLocation?: { lat: number; lng: number; ts: number } | null;
   projection?: 'mercator' | 'globe';
+  mapStyle?: string;
 }
 
 function computeSolarTerminator(): [number, number][] {
@@ -37,11 +38,12 @@ function computeSolarTerminator(): [number, number][] {
 
 const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
 
-export default function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightClick, onViewStateChange, flyToLocation, projection = 'globe' }: OsirisMapProps) {
+export default function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightClick, onViewStateChange, flyToLocation, projection = 'globe', mapStyle = 'dark' }: OsirisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const prevStyleRef = useRef(mapStyle);
 
   // Create aircraft icon on canvas (for WebGL symbol layer)
   const createIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
@@ -487,6 +489,37 @@ export default function OsirisMap({ data, activeLayers, onEntityClick, onMouseCo
       console.warn('Projection switch failed:', e);
     }
   }, [mapReady, projection]);
+
+  // Satellite / Dark style switching
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    if (mapStyle === prevStyleRef.current) return;
+    prevStyleRef.current = mapStyle;
+    const map = mapRef.current;
+
+    try {
+      if (mapStyle !== 'dark') {
+        // Add satellite raster tiles
+        if (!map.getSource('satellite-tiles')) {
+          map.addSource('satellite-tiles', {
+            type: 'raster',
+            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256,
+            maxzoom: 18,
+          });
+          map.addLayer({ id: 'satellite-layer', type: 'raster', source: 'satellite-tiles', paint: { 'raster-opacity': 0.85 } }, 'day-night-fill');
+        } else {
+          map.setLayoutProperty('satellite-layer', 'visibility', 'visible');
+        }
+      } else {
+        if (map.getLayer('satellite-layer')) {
+          map.setLayoutProperty('satellite-layer', 'visibility', 'none');
+        }
+      }
+    } catch (e) {
+      console.warn('Style switch failed:', e);
+    }
+  }, [mapReady, mapStyle]);
 
   return <div ref={containerRef} className="absolute inset-0 w-full h-full" />;
 }
