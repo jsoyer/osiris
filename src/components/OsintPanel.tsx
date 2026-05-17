@@ -137,25 +137,50 @@ function OsintPanelInner({ isMobile }: OsintPanelProps) {
     // ── VULN SCAN ──
     if (activeTab === 'vuln') {
       const vulns = r.vulnerabilities || r.vulns || r.cves || [];
+      const exploits = vulns.filter((v: any) => v.is_exploit);
+      const regularVulns = vulns.filter((v: any) => !v.is_exploit);
+      
       return (
         <div>
           <SectionHeader title="VULNERABILITY ASSESSMENT" icon={Bug} color="#FF3D3D" />
           <ResultRow label="Target" value={r.target || query} color="#FF3D3D" />
           <ResultRow label="Total CVEs" value={Array.isArray(vulns) ? vulns.length : 0} color={Array.isArray(vulns) && vulns.length > 0 ? '#FF3D3D' : '#00E676'} />
           <ResultRow label="Risk Level" value={r.risk_level || r.severity} />
-          {Array.isArray(vulns) && vulns.length > 0 && (
+          {Array.isArray(regularVulns) && regularVulns.length > 0 && (
             <div className="mt-2 space-y-1">
-              {vulns.slice(0, 20).map((v: any, i: number) => (
-                <div key={i} className="p-2 rounded-lg border border-red-500/20 bg-red-500/5">
+              {regularVulns.slice(0, 20).map((v: any, i: number) => (
+                <div key={i} className="p-2 rounded-lg border border-red-500/20 bg-red-500/5 flex flex-col">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono font-bold text-red-400">{v.id || v.cve || v.name}</span>
                     {v.severity && <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${v.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400' : v.severity === 'HIGH' ? 'bg-orange-500/20 text-orange-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{v.severity}</span>}
                   </div>
+                  {v.cvss && <div className="text-[9px] font-mono text-[var(--text-muted)] mt-1">CVSS: {v.cvss} ({v.type || 'cve'})</div>}
                   {v.description && <p className="text-[9px] font-mono text-[var(--text-muted)] mt-1 line-clamp-2">{v.description}</p>}
                 </div>
               ))}
             </div>
           )}
+          
+          {exploits.length > 0 && (
+            <div className="mt-4">
+              <SectionHeader title={`POSSIBLE EXPLOITS (${exploits.length})`} icon={AlertTriangle} color="#FF9500" />
+              <div className="mt-2 space-y-1">
+                {exploits.slice(0, 10).map((e: any, i: number) => (
+                  <div key={i} className="p-2 rounded-lg border border-orange-500/30 bg-orange-500/10 flex flex-col">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-orange-400">{e.id}</span>
+                      <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400">EXPLOIT</span>
+                    </div>
+                    <div className="text-[9px] font-mono text-[var(--text-muted)] mt-1 flex justify-between">
+                      <span>Source: {e.type?.toUpperCase() || 'UNKNOWN'}</span>
+                      {e.cvss && <span>CVSS: {e.cvss}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           {(!Array.isArray(vulns) || vulns.length === 0) && renderFallback()}
         </div>
       );
