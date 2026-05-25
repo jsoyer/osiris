@@ -23,6 +23,13 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
     restart: unless-stopped
+    networks:
+      - default
+      - umami_default
+
+networks:
+  umami_default:
+    external: true
 
 # ── CasaOS app-store metadata (ignored by plain Docker Compose) ──
 x-casaos:
